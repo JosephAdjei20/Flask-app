@@ -1,0 +1,253 @@
+Project Setup
+We’ll start with a basic “Hello World” app on Heroku with staging (or pre-production) and production environments.
+
+For the initial setup, you should have some familiarity with the following tools:
+
+Virtualenv - https://realpython.com/python-virtual-environments-a-primer/
+Flask - http://flask.pocoo.org/
+git/Github - https://realpython.com/python-git-github-intro/
+Heroku (basics) - https://devcenter.heroku.com/articles/getting-started-with-python
+First things first, let’s get a working directory set up:
+
+$ mkdir flask-by-example && cd flask-by-example
+Initialize a new git repo within your working directory:
+
+$ git init
+Set up a virtual environment to use for our application:
+
+$ python3 -m venv env
+$ source env/bin/activate
+You should now see you (env) to the left of the prompt in the terminal, indicating that you are now working in a virtual environment.
+
+In order to leave your virtual environment, just run deactivate, and then run source env/bin/activate when you are ready to work on your project again.
+
+Next we’re going to get our basic structure for our app set up. Add the following files to your “flask-by-example” folder:
+
+$ touch app.py .gitignore README.md requirements.txt
+This will give you the following structure:
+
+├── .gitignore
+├── app.py
+├── README.md
+└── requirements.txt
+Be sure to update the .gitignore file from the repo.
+
+Next install Flask:
+
+$ python -m pip install Flask==1.1.1
+Add the installed libraries to our requirements.txt file:
+
+$ python -m pip freeze > requirements.txt
+Open up app.py in your favorite editor and add the following code:
+
+from flask import Flask
+app = Flask(__name__)
+
+
+@app.route('/')
+def hello():
+    return "Hello World!"
+
+if __name__ == '__main__':
+    app.run()
+Run the app:
+
+$ python app.py
+And you should see your basic “Hello world” app in action on http://localhost:5000/. Kill the server when done.
+
+Next we’re going to set up our Heroku environments for both our production and staging app.
+
+
+ Remove ads
+Heroku Setup
+If you haven’t already, create a Heroku account, download and install the Heroku Toolbelt, and then in your terminal run heroku login to log in to Heroku.
+
+Once done, create a Procfile in your project’s root directory:
+
+$ touch Procfile
+Add the following line to your newly created file
+
+web: gunicorn app:app
+Make sure to add gunicorn to your requirments.txt file
+
+$ python -m pip install gunicorn==20.0.4
+$ python -m pip freeze > requirements.txt
+We also need to specify a Python version so that Heroku uses the right Python Runtime to run our app with. Simply create a file called runtime.txt with the following code:
+
+python-3.8.1
+Commit your changes in git (and optionally push to Github), then create two new Heroku apps.
+
+One for production:
+
+$ heroku create wordcount-pro
+And one for staging:
+
+$ heroku create wordcount-stage
+These names are now taken, so you will have to make your Heroku app name unique.
+
+Add your new apps to your git remotes. Make sure to name one remote pro (for “production”) and the other stage (for “staging”):
+
+$ git remote add pro git@heroku.com:YOUR_APP_NAME.git
+$ git remote add stage git@heroku.com:YOUR_APP_NAME.git
+Now we can push both of our apps live to Heroku.
+
+For staging: git push stage master
+For production: git push pro master
+Once both of those have been pushed, open the URLs up in your web browser and if all went well you should see your app live in both environments.
+
+
+ Remove ads
+Staging/Production Workflow
+Let’s make a change to our app and push only to staging:
+
+from flask import Flask
+app = Flask(__name__)
+
+
+@app.route('/')
+def hello():
+    return "Hello World!"
+
+
+@app.route('/<name>')
+def hello_name(name):
+    return "Hello {}!".format(name)
+
+if __name__ == '__main__':
+    app.run()
+Run your app locally to make sure everything works - python app.py
+
+Test it out by adding a name after the URL - i.e., http://localhost:5000/mike.
+
+Now let’s try out our changes on staging before we push them live to production. Make sure your changes are committed in git and then push your work up to the staging environment - git push stage master.
+
+Now if you navigate to your staging environment, you’ll be able to use the new URL - i.e., “/mike” and get “Hello NAME” based on what you put into the URL as the output in the browser. However, if you try the same thing on the production site you will get an error. So we can build things and test them out in the staging environment and then when we’re happy with the changes, we can push them live to production.
+
+Let’s push our site to production now that we’re happy with it - git push pro master
+
+Now we have the same functionality live on our production site.
+
+This staging/production workflow allows us to make changes, show things to clients, experiment, etc. - all within a sandboxed server without causing any changes to the live production site that users are, well, using.
+
+Config Settings
+The last thing that we’re going to do is set up different config environments for our app. Often there are things that are going to be different between your local, staging, and production setups. You’ll want to connect to different databases, have different AWS keys, etc. Let’s set up a config file to deal with the different environments.
+
+Add a config.py file to your project root:
+
+$ touch config.py
+With our config file we’re going to borrow a bit from how Django’s config is set up. We’ll have a base config class that the other config classes inherit from. Then we’ll import the appropriate config class as needed.
+
+Add the following to your newly created config.py file:
+
+import os
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+
+class Config(object):
+    DEBUG = False
+    TESTING = False
+    CSRF_ENABLED = True
+    SECRET_KEY = 'this-really-needs-to-be-changed'
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+
+
+class StagingConfig(Config):
+    DEVELOPMENT = True
+    DEBUG = True
+
+
+class DevelopmentConfig(Config):
+    DEVELOPMENT = True
+    DEBUG = True
+
+
+class TestingConfig(Config):
+    TESTING = True
+We imported os and then set the basedir variable as a relative path from any place we call it to this file. We then set up a base Config() class with some basic setup that our other config classes inherit from. Now we’ll be able to import the appropriate config class based on the current environment. Thus, we can use environment variables to choose which settings we’re going to use based on the environment - e.g., local, staging, production.
+
+Local Settings
+To set up our application with environment variables, we’re going to use autoenv. This program allows us to set commands that will run every time we cd into our directory. In order to use it, we will need to install it globally. First, exit out of your virtual environment in the terminal, install autoenv, then and add a .env file:
+
+$ deactivate
+$ pip install autoenv==1.0.0
+$ touch .env
+Next, in your .env file, add the following:
+
+source env/bin/activate
+export APP_SETTINGS="config.DevelopmentConfig"
+Run the following to update then refresh your .bashrc:
+
+$ echo "source `which activate.sh`" >> ~/.bashrc
+$ source ~/.bashrc
+Now, if you move up a directory and then cd back into it, the virtual environment will automatically be started and the APP_SETTINGS variable is declared.
+
+
+ Remove ads
+Heroku Settings
+Similarly we’re going to set environment variables on Heroku.
+
+For staging run the following command:
+
+$ heroku config:set APP_SETTINGS=config.StagingConfig --remote stage
+For production:
+
+$ heroku config:set APP_SETTINGS=config.ProductionConfig --remote pro
+To make sure that we use the right environment change app.py:
+
+import os
+from flask import Flask
+
+
+app = Flask(__name__)
+app.config.from_object(os.environ['APP_SETTINGS'])
+
+
+@app.route('/')
+def hello():
+    return "Hello World!"
+
+
+@app.route('/<name>')
+def hello_name(name):
+    return "Hello {}!".format(name)
+
+if __name__ == '__main__':
+    app.run()
+We imported os and used the os.environ method to import the appropriate APP_SETTINGS variables, depending on our environment. We then set up the config in our app with the app.config.from_object method.
+
+Commit and push your changes to both staging and production (and Github if you have it setup).
+
+Want to test the environment variables out to make sure it’s detecting the right environment (sanity check!)? Add a print statement to app.py:
+
+print(os.environ['APP_SETTINGS'])
+Now when you run the app, it will show which config settings it’s importing:
+
+Local:
+
+$ python app.py
+config.DevelopmentConfig
+Commit and push again to staging and production. Now let’s test it out…
+
+Staging:
+
+$ heroku run python app.py --app wordcount-stage
+Running python app.py on wordcount-stage... up, run.7699
+config.StagingConfig
+Production:
+
+$ heroku run python app.py --app wordcount-pro
+Running python app.py on wordcount-pro... up, run.8934
+config.ProductionConfig
+Be sure to remove print(os.environ['APP_SETTINGS']) when done, commit, and push back up to your various environments.
+
+
+ Remove ads
+Conclusion
+With the setup out of the way, we’re going to start to build out the word counting functionality of this app. Along the way, we’ll add a task queue to set up background processing for the word count portion, as well dig further into our Heroku setup by setting up the configuration and migrations for our database (part2) which we’ll use to store our word count results. Best!
+
+Free Bonus: Click here to get access to a free Flask + Python video tutorial that shows you how to build Flask web app, step-by-step.
+
+Grab the code from the repo.
